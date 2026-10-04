@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -20,6 +23,7 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
+    // Анімація індикатора завантаження
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -33,6 +37,13 @@ class _SplashScreenState extends State<SplashScreen>
           _activeIndex = index;
         });
       }
+    });
+
+    // Через 2 секунди переходимо на Onboarding
+    Timer(const Duration(seconds: 2), () {
+      if (!mounted) return;
+
+      context.go('/onboarding');
     });
   }
 
@@ -74,6 +85,7 @@ class _SplashScreenState extends State<SplashScreen>
       body: SafeArea(
         child: Stack(
           children: [
+            // Центральний блок
             Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -96,7 +108,7 @@ class _SplashScreenState extends State<SplashScreen>
                   const SizedBox(height: 11),
 
                   Text(
-                    'Керуйте своїми фінансами легко',
+                    'Твої гроші працюють на тебе',
                     style: AppTextStyles.bodyMedium.copyWith(
                       color: Colors.white70,
                     ),
@@ -106,6 +118,7 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
 
+            // Loader
             Positioned(
               bottom: 18,
               left: 0,
