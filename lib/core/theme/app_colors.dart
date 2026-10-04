@@ -15,13 +15,16 @@ class AppColors {
   static const Color textSecondary = Color(0xFF718096);
 
   // Доходи
-  static const Color income = Color(0xFF0A9F6E);
+  static const Color income = Color(0xFF059669);
 
   // Витрати
-  static const Color expense = Color(0xFFE91E63);
+  static const Color expense = Color(0xFFE11D48);
 
   // Прогрес / цілі
-  static const Color warning = Color(0xFFFFA000);
+  static const Color warning = Color(0xFFF59E0B);
+
+  // Прогрес / авто
+  static const Color car = Color(0xFF2563EB);
 
   // Баланс-картка
   static const Color balanceCard = Color(0xFF185442);
@@ -30,5 +33,9 @@ class AppColors {
   static const Color border = Color(0xFFE5E5E5);
 
   // Неактивні елементи
-  static const Color inactive = Color(0xFFBDBDBD);
+  static const Color inactive = Color(0xFF6B7280);
+
+  // графіки
+  static const Color chart = Color(0xFFD4EED8);
+
 }
