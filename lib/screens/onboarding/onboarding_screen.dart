@@ -1,11 +1,80 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../widgets/primary_button.dart';
 
-class OnboardingScreen extends StatelessWidget {
+class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
+
+  @override
+  State<OnboardingScreen> createState() => _OnboardingScreenState();
+}
+
+class _OnboardingScreenState extends State<OnboardingScreen> {
+  final PageController _pageController = PageController();
+
+  int _currentPage = 0;
+
+  final List<OnboardingData> _pages = [
+    const OnboardingData(
+      image: 'assets/images/onboarding_balance.png',
+      imageWidth: 260,
+      imageHeight: 220,
+      title: 'Контролюй свої\nфінанси легко',
+      description:
+      'Автоматичний облік, аналітика та розумні поради\n'
+          'в одному застосунку.',
+    ),
+
+    const OnboardingData(
+      image: 'assets/images/onboarding_transactions.png',
+      imageWidth: 327,
+      imageHeight: 280,
+      title: 'Автоматичний\nімпорт транзакцій',
+      description:
+      'Підключи свої банки, Apple Pay або Google Pay,\n'
+          'і ми самі підтягнемо твої витрати.',
+    ),
+
+    const OnboardingData(
+      image: 'assets/images/onboarding_ai.png',
+      imageWidth: 342,
+      imageHeight: 260,
+      title: 'ШІ аналізує\nтвої витрати',
+      description:
+      'Розумна категоризація, статистика та персональні\n'
+          'рекомендації.',
+    ),
+
+    const OnboardingData(
+      image: 'assets/images/onboarding_goals.png',
+      imageWidth: 342,
+      imageHeight: 260,
+      title: 'Досягай\nсвоїх фінансових цілей',
+      description:
+      'Створюй цілі, відстежуй прогрес та\n'
+          'рухайся до бажаного результату.',
+    ),
+  ];
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _nextPage() {
+    if (_currentPage < _pages.length - 1) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    } else {
+      context.go('/login');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,6 +88,7 @@ class OnboardingScreen extends StatelessWidget {
               // =========================
               // HEADER
               // =========================
+
               Padding(
                 padding: const EdgeInsets.only(top: 48),
                 child: SizedBox(
@@ -32,95 +102,130 @@ class OnboardingScreen extends StatelessWidget {
                         height: 38,
                       ),
                       const SizedBox(width: 8),
-                      Text(
+                      const Text(
                         'FinTrack',
-                        style: AppTextStyles.h3,
+                        style: TextStyle(
+                          fontFamily: 'Roboto',
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.3,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
 
-              // Відступ до ілюстрації
-              const SizedBox(height: 39),
+              // =========================
+              // ONBOARDING PAGES
+              // =========================
 
-              // =========================
-              // ILLUSTRATION
-              // =========================
-              SizedBox(
-                width: 260,
-                height: 220,
-                child: Image.asset(
-                  'assets/images/onboarding_balance.png',
-                  fit: BoxFit.contain,
+              Expanded(
+                child: PageView.builder(
+                  controller: _pageController,
+                  itemCount: _pages.length,
+                  onPageChanged: (index) {
+                    setState(() {
+                      _currentPage = index;
+                    });
+                  },
+                  itemBuilder: (context, index) {
+                    final page = _pages[index];
+
+                    return Column(
+                      children: [
+                        // Відступ від Header
+                        const SizedBox(height: 34),
+
+                        // =========================
+                        // ILLUSTRATION
+                        // =========================
+
+                        SizedBox(
+                          width: page.imageWidth,
+                          height: page.imageHeight,
+                          child: Image.asset(
+                            page.image,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+
+                        // Відступ до тексту
+                        const SizedBox(height: 42),
+
+                        // =========================
+                        // TITLE
+                        // =========================
+
+                        SizedBox(
+                          width: 339,
+                          child: Text(
+                            page.title,
+                            style: AppTextStyles.h2,
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // =========================
+                        // DESCRIPTION
+                        // =========================
+
+                        SizedBox(
+                          width: 339,
+                          child: Text(
+                            page.description,
+                            style: AppTextStyles.bodySmall,
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
-
-              // Відступ від ілюстрації до тексту
-              const SizedBox(height: 58),
-
-              // =========================
-              // TEXT CONTENT
-              // =========================
-              SizedBox(
-                width: 339,
-                child: Column(
-                  children: [
-                    Text(
-                      'Контролюй свої\nфінанси легко',
-                      style: AppTextStyles.h2,
-                      textAlign: TextAlign.center,
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    Text(
-                      'Автоматичний облік, аналітика та розумні поради\n'
-                          'в одному застосунку.',
-                      style: AppTextStyles.bodySmall,
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-
-              // Відступ до pagination
-              const SizedBox(height: 48),
 
               // =========================
               // PAGINATION
               // =========================
+
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 18,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  _dot(),
-                  const SizedBox(width: 5),
-                  _dot(),
-                  const SizedBox(width: 5),
-                  _dot(),
-                ],
+                children: List.generate(
+                  _pages.length,
+                      (index) {
+                    final isActive = index == _currentPage;
+
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeInOut,
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: isActive ? 18 : 5,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? AppColors.primary
+                            : const Color(0xFFD1D5DB),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    );
+                  },
+                ),
               ),
 
-              // Все вільне місце
-              const Spacer(),
+              const SizedBox(height: 58),
 
               // =========================
               // BUTTON
               // =========================
+
               PrimaryButton(
-                text: 'Далі',
-                onPressed: () {
-                  // Наступний onboarding
-                },
+                text: _currentPage == _pages.length - 1
+                    ? 'Почати'
+                    : 'Далі',
+                onPressed: _nextPage,
               ),
 
               const SizedBox(height: 28),
@@ -130,15 +235,24 @@ class OnboardingScreen extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _dot() {
-    return Container(
-      width: 5,
-      height: 5,
-      decoration: const BoxDecoration(
-        color: Color(0xFFD1D5DB),
-        shape: BoxShape.circle,
-      ),
-    );
-  }
+// =========================
+// ONBOARDING DATA
+// =========================
+
+class OnboardingData {
+  final String image;
+  final double imageWidth;
+  final double imageHeight;
+  final String title;
+  final String description;
+
+  const OnboardingData({
+    required this.image,
+    required this.imageWidth,
+    required this.imageHeight,
+    required this.title,
+    required this.description,
+  });
 }

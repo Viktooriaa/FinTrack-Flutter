@@ -63,7 +63,7 @@ class AppTextStyles {
     fontFamily: 'Poppins',
     fontSize: 16,
     fontWeight: FontWeight.w600,
-    color: Colors.white,
+    color: AppColors.surface,
   );
 
   // =========================
@@ -92,14 +92,14 @@ class AppTextStyles {
     fontFamily: 'Poppins',
     fontSize: 28,
     fontWeight: FontWeight.w700,
-    color: Colors.white,
+    color: AppColors.surface,
   );
 
   static const TextStyle balanceLabel = TextStyle(
     fontFamily: 'Poppins',
     fontSize: 12,
     fontWeight: FontWeight.w400,
-    color: Colors.white70,
+    color: AppColors.surface,
   );
 
   // =========================
