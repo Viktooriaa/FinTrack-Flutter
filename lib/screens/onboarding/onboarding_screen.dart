@@ -44,7 +44,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       imageHeight: 260,
       title: 'ШІ аналізує\nтвої витрати',
       description:
-      'Розумна категоризація, статистика та персональні\n'
+      'Розумна категоризація,\n'
+          'статистика та персональні\n'
           'рекомендації.',
     ),
 
@@ -135,28 +136,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
                     return Column(
                       children: [
-                        // Відступ від Header
-                        const SizedBox(height: 34),
+                        // Відступ від логотипа
+                        const SizedBox(height: 36),
 
                         // =========================
                         // ILLUSTRATION
                         // =========================
 
                         SizedBox(
-                          width: page.imageWidth,
-                          height: page.imageHeight,
-                          child: Image.asset(
-                            page.image,
-                            fit: BoxFit.contain,
+                          width: double.infinity,
+                          height: 280,
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            child: Image.asset(
+                              page.image,
+                              width: page.imageWidth,
+                              height: page.imageHeight,
+                              fit: BoxFit.contain,
+                            ),
                           ),
                         ),
-
-                        // Відступ до тексту
-                        const SizedBox(height: 42),
 
                         // =========================
                         // TITLE
                         // =========================
+
+                        const SizedBox(height: 20),
 
                         SizedBox(
                           width: 339,
@@ -167,11 +172,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           ),
                         ),
 
-                        const SizedBox(height: 12),
-
                         // =========================
                         // DESCRIPTION
                         // =========================
+
+                        const SizedBox(height: 12),
 
                         SizedBox(
                           width: 339,
@@ -215,7 +220,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
               ),
 
-              const SizedBox(height: 58),
+              // Відступ до кнопки
+              const SizedBox(height: 48),
 
               // =========================
               // BUTTON
@@ -228,6 +234,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 onPressed: _nextPage,
               ),
 
+              // Нижній відступ
               const SizedBox(height: 28),
             ],
           ),
