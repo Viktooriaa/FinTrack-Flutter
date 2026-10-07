@@ -51,43 +51,60 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 // BACK BUTTON
                 // =========================
 
-                IconButton(
-                  onPressed: () {
-                    context.go('/login');
-                  },
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  icon: const Icon(
-                    Icons.arrow_back,
-                    size: 24,
-                    color: AppColors.textPrimary,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Transform.translate(
+                      offset: const Offset(-20, 0),
+                      child: IconButton(
+                        onPressed: () {
+                          context.go('/login');
+                        },
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 24,
+                          minHeight: 24,
+                        ),
+                        icon: const Icon(
+                          Icons.arrow_back,
+                          size: 24,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 28),
+
+                    Expanded(
+                      child: Transform.translate(
+                        offset: const Offset(-40, 0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                            'Створити акаунт',
+                            style: AppTextStyles.h2.copyWith(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+
+                          const SizedBox(height: 4),
+
+                          Text(
+                            'Заповни дані для початку роботи',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ),
+                  ],
                 ),
 
-                const SizedBox(height: 22),
-
-                // =========================
-                // TITLE
-                // =========================
-
-                Text(
-                  'Створити акаунт',
-                  style: AppTextStyles.h2.copyWith(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-
-                const SizedBox(height: 4),
-
-                Text(
-                  'Заповни дані для початку роботи',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    fontSize: 14,
-                  ),
-                ),
-
-                const SizedBox(height: 22),
+                const SizedBox(height: 40),
 
                 // =========================
                 // NAME
@@ -103,7 +120,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   keyboardType: TextInputType.name,
                 ),
 
-                const SizedBox(height: 14),
+                const SizedBox(height: 18),
 
                 // =========================
                 // EMAIL
@@ -119,7 +136,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   keyboardType: TextInputType.emailAddress,
                 ),
 
-                const SizedBox(height: 14),
+                const SizedBox(height: 18),
 
                 // =========================
                 // PASSWORD
@@ -165,7 +182,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   },
                 ),
 
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
 
                 // =========================
                 // TIPS CHECKBOX
@@ -181,7 +198,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   },
                 ),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 29),
 
                 // =========================
                 // SIGN UP BUTTON
@@ -199,7 +216,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 // =========================
 
                 SizedBox(
-                  height: 190,
+                  height: 250,
                   child: Align(
                     alignment: Alignment.bottomCenter,
                     child: Padding(
