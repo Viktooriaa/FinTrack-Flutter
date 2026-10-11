@@ -207,7 +207,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 PrimaryButton(
                   text: 'Зареєструватися',
                   onPressed: () {
-                    // Тут пізніше буде API реєстрації
+                        context.go('/home');
                   },
                 ),
 

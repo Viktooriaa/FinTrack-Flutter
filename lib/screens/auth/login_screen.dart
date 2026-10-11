@@ -151,7 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 PrimaryButton(
                   text: 'Увійти',
                   onPressed: () {
-                    // Тут пізніше буде API авторизації
+                    context.go('/home');
                   },
                 ),
 
