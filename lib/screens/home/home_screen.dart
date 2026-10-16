@@ -3,6 +3,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../analytics/analytics_content.dart';
+import '../transactions/transactions_content.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -13,6 +15,13 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedNavIndex = 0;
+  final PageController _pageController = PageController();
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -33,34 +42,24 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           children: [
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeader(),
-                    const SizedBox(height: 14),
-                    _buildBalanceCard(),
-                    const SizedBox(height: 14),
-                    _buildQuickActions(),
-                    const SizedBox(height: 20),
-                    _buildSectionHeader(
-                      'Рахунки та картки',
-                      'Усі (4)',
-                      onTap: () => _showMessage('Усі рахунки'),
-                    ),
-                    const SizedBox(height: 10),
-                    _buildAccounts(),
-                    const SizedBox(height: 18),
-                    _buildSectionHeader(
-                      'Останні транзакції',
-                      'Більше',
-                      onTap: () => _showMessage('Усі транзакції'),
-                    ),
-                    const SizedBox(height: 10),
-                    _buildTransactions(),
-                  ],
-                ),
+              child: PageView(
+                controller: _pageController,
+                onPageChanged: (page) {
+                  setState(() {
+                    _selectedNavIndex = switch (page) {
+                      0 => 0,
+                      1 => 1,
+                      2 => 3,
+                      _ => 4,
+                    };
+                  });
+                },
+                children: [
+                  _buildHomeContent(),
+                  const TransactionsContent(),
+                  const AnalyticsContent(),
+                  _buildMoreContent(),
+                ],
               ),
             ),
             _buildBottomNavigation(),
@@ -70,16 +69,82 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildHomeContent() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(),
+          const SizedBox(height: 4),
+          _buildBalanceCard(),
+          const SizedBox(height: 14),
+          _buildQuickActions(),
+          const SizedBox(height: 22),
+          _buildSectionHeader(
+            'Рахунки та картки',
+            'Усі (4)',
+            onTap: () => _showMessage('Усі рахунки'),
+          ),
+          const SizedBox(height: 8),
+          _buildAccounts(),
+          const SizedBox(height: 24),
+          _buildSectionHeader(
+            'Останні транзакції',
+            'Більше',
+            onTap: () => _onNavigationTap(1),
+          ),
+          const SizedBox(height: 6),
+          _buildTransactions(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMoreContent() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Ще',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 18),
+          for (final item in const [
+            (Icons.account_balance_wallet_outlined, 'Рахунки та картки'),
+            (Icons.flag_outlined, 'Фінансові цілі'),
+            (Icons.settings_outlined, 'Налаштування'),
+            (Icons.help_outline_rounded, 'Допомога'),
+          ]) ...[
+            Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              child: ListTile(
+                leading: Icon(item.$1, color: AppColors.primary),
+                title: Text(item.$2),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => _showMessage(item.$2),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ],
+      ),
+    );
+  }
+
   // HEADER
 
   Widget _buildHeader() {
     return SizedBox(
-      height: 72,
+      height: 56,
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 38,
+            height: 38,
             decoration: const BoxDecoration(
               color: AppColors.primary,
               shape: BoxShape.circle,
@@ -89,7 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
               'І',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 20,
+                fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -98,10 +163,11 @@ class _HomeScreenState extends State<HomeScreen> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'Вітаємо назад,',
-                  style: AppTextStyles.bodySmall.copyWith(fontSize: 12),
+                  'Вітаю назад,',
+                  style: AppTextStyles.bodySmall.copyWith(fontSize: 11),
                 ),
                 const SizedBox(height: 2),
                 const Text(
@@ -122,8 +188,8 @@ class _HomeScreenState extends State<HomeScreen> {
               customBorder: const CircleBorder(),
               onTap: () => _showMessage('Сповіщення'),
               child: SizedBox(
-                width: 42,
-                height: 42,
+                width: 38,
+                height: 38,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
@@ -155,12 +221,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildBalanceCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 17, 18, 17),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF185442), Color(0xFF1D5945)],
+          colors: [Color(0xFF1D5947), Color(0xFF285E50)],
         ),
         borderRadius: BorderRadius.circular(23),
         boxShadow: [
@@ -178,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> {
             'Загальний баланс',
             style: TextStyle(color: Color(0xFFB8D9C9), fontSize: 12),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 6),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
@@ -188,7 +254,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   TextSpan(
                     text: '124,850.00 ',
                     style: TextStyle(
-                      fontSize: 27,
+                      fontSize: 30,
                       fontWeight: FontWeight.w800,
                       color: Colors.white,
                       letterSpacing: -0.7,
@@ -208,7 +274,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 15),
           Container(height: 1, color: Colors.white.withValues(alpha: 0.12)),
-          const SizedBox(height: 13),
+          const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
@@ -332,6 +398,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildQuickActionCard(_QuickAction action) {
     return Material(
       color: Colors.white,
+      elevation: 1,
+      shadowColor: const Color(0x1A1D4D3E),
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -342,8 +410,8 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 34,
+                height: 34,
                 decoration: BoxDecoration(
                   color: action.background,
                   borderRadius: BorderRadius.circular(12),
@@ -364,7 +432,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     action.title,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      fontSize: 9,
+                      fontSize: 10,
                       height: 1.15,
                       color: AppColors.textPrimary,
                     ),
@@ -391,7 +459,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Text(
             title,
             style: const TextStyle(
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
@@ -402,7 +470,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Text(
             action,
             style: const TextStyle(
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               color: AppColors.primary,
             ),
@@ -415,8 +483,9 @@ class _HomeScreenState extends State<HomeScreen> {
   // ACCOUNTS
 
   Widget _buildAccounts() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 19),
+    return FractionallySizedBox(
+      widthFactor: 0.855,
+      alignment: Alignment.centerLeft,
       child: Row(
         children: [
           Expanded(
@@ -448,7 +517,8 @@ class _HomeScreenState extends State<HomeScreen> {
     required bool isMono,
   }) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 11, 10, 11),
+      constraints: const BoxConstraints(minHeight: 82),
+      padding: const EdgeInsets.fromLTRB(12, 13, 10, 13),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -463,7 +533,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   name,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w800,
                     color: isMono ? AppColors.textPrimary : AppColors.income,
                   ),
@@ -485,7 +555,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Text(
             subtitle,
             style: const TextStyle(
-              fontSize: 10,
+              fontSize: 11,
               color: AppColors.textSecondary,
             ),
           ),
@@ -496,7 +566,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Text(
               balance,
               style: const TextStyle(
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: FontWeight.w800,
                 color: AppColors.textPrimary,
               ),
@@ -520,6 +590,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           _buildTransactionRow(
             icon: Icons.shopping_cart_outlined,
+            iconAssetPath: 'assets/images/products.png',
             iconBackground: const Color(0xFFFFF0C2),
             title: 'Сільпо',
             subtitle: 'Продукти • Сьогодні',
@@ -529,6 +600,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Container(height: 1, color: const Color(0xFFF1F2F1)),
           _buildTransactionRow(
             icon: Icons.savings_outlined,
+            iconAssetPath: 'assets/images/zarplata.png',
             iconBackground: const Color(0xFFD5F8E8),
             title: 'Зарплата',
             subtitle: 'Дохід • Вчора',
@@ -542,6 +614,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildTransactionRow({
     required IconData icon,
+    String? iconAssetPath,
     required Color iconBackground,
     required String title,
     required String subtitle,
@@ -553,13 +626,20 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         children: [
           Container(
-            width: 34,
-            height: 34,
+            width: 30,
+            height: 30,
             decoration: BoxDecoration(
               color: iconBackground,
               borderRadius: BorderRadius.circular(11),
             ),
-            child: Icon(icon, size: 18, color: AppColors.textPrimary),
+            child: iconAssetPath == null
+                ? Icon(icon, size: 18, color: AppColors.textPrimary)
+                : Image.asset(
+                    iconAssetPath,
+                    width: 22,
+                    height: 22,
+                    fit: BoxFit.contain,
+                  ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -569,7 +649,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -577,7 +657,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   subtitle,
                   style: const TextStyle(
-                    fontSize: 9,
+                    fontSize: 10,
                     color: AppColors.textSecondary,
                   ),
                 ),
@@ -607,15 +687,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBottomNavigation() {
     const items = [
-      (icon: Icons.home_outlined, label: 'Головна'),
-      (icon: Icons.format_list_numbered_rounded, label: 'Операції'),
-      (icon: Icons.add_rounded, label: ''),
-      (icon: Icons.pie_chart_outline_rounded, label: 'Аналітика'),
-      (icon: Icons.more_horiz_rounded, label: 'Ще'),
+      (iconPath: 'assets/icons/home.svg', label: 'Головна'),
+      (iconPath: 'assets/icons/operation.svg', label: 'Операції'),
+      (iconPath: 'assets/icons/button_add.svg', label: ''),
+      (iconPath: 'assets/icons/analis.svg', label: 'Аналітика'),
+      (iconPath: 'assets/icons/dots.svg', label: 'Ще'),
     ];
 
     return Container(
-      height: 64,
+      height: 54,
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: Color(0xFFEDEFEF), width: 0.7)),
@@ -630,31 +710,8 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Center(
                 child: InkWell(
                   customBorder: const CircleBorder(),
-                  onTap: () => _showMessage('Нова операція'),
-                  child: Container(
-                    width: 45,
-                    height: 45,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: const Color(0xFFDCE9E1),
-                        width: 4,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.15),
-                          blurRadius: 7,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.add_rounded,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
+                  onTap: _showAddTransactionSheet,
+                  child: SvgPicture.asset(item.iconPath, width: 68, height: 55),
                 ),
               ),
             );
@@ -662,28 +719,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
           return Expanded(
             child: InkWell(
-              onTap: () {
-                setState(() {
-                  _selectedNavIndex = index;
-                });
-
-                if (index != 0) {
-                  _showMessage(item.label);
-                }
-              },
+              onTap: () => _onNavigationTap(index),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    item.icon,
-                    size: 21,
-                    color: isSelected ? AppColors.primary : AppColors.inactive,
+                  SvgPicture.asset(
+                    item.iconPath,
+                    width: 20,
+                    height: 20,
+                    colorFilter: ColorFilter.mode(
+                      isSelected ? AppColors.primary : AppColors.inactive,
+                      BlendMode.srcIn,
+                    ),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     item.label,
                     style: TextStyle(
-                      fontSize: 9,
+                      fontSize: 10,
                       fontWeight: isSelected
                           ? FontWeight.w700
                           : FontWeight.w400,
@@ -697,6 +750,93 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           );
         }),
+      ),
+    );
+  }
+
+  void _onNavigationTap(int index) {
+    if (index == 2) {
+      _showAddTransactionSheet();
+      return;
+    }
+
+    final page = switch (index) {
+      0 => 0,
+      1 => 1,
+      3 => 2,
+      _ => 3,
+    };
+    _pageController.animateToPage(
+      page,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _showAddTransactionSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Нова операція',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: _AddActionButton(
+                      label: 'Дохід',
+                      icon: Icons.south_west_rounded,
+                      color: AppColors.income,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _AddActionButton(
+                      label: 'Витрата',
+                      icon: Icons.north_east_rounded,
+                      color: AppColors.expense,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AddActionButton extends StatelessWidget {
+  const _AddActionButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: () => Navigator.of(context).pop(),
+      icon: Icon(icon, color: color),
+      label: Text(label, style: TextStyle(color: color)),
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(54),
+        side: BorderSide(color: color.withValues(alpha: 0.2)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }

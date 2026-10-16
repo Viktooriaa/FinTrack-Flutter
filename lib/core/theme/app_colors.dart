@@ -4,15 +4,15 @@ class AppColors {
   AppColors._();
 
   // Основний колір FinTrack
-  static const Color primary = Color(0xFF173D2A);
+  static const Color primary = Color(0xFF1D4D3E);
 
   // Фон
-  static const Color background = Color(0xFFF7F7F7);
+  static const Color background = Color(0xFFF3F5F4);
   static const Color surface = Colors.white;
 
   // Текст
-  static const Color textPrimary = Color(0xFF0F172A);
-  static const Color textSecondary = Color(0xFF718096);
+  static const Color textPrimary = Color(0xFF1F2937);
+  static const Color textSecondary = Color(0xFF9CA3AF);
 
   // Доходи
   static const Color income = Color(0xFF059669);
@@ -33,9 +33,8 @@ class AppColors {
   static const Color border = Color(0xFFE5E5E5);
 
   // Неактивні елементи
-  static const Color inactive = Color(0xFF6B7280);
+  static const Color inactive = Color(0xFF9CA3AF);
 
   // графіки
   static const Color chart = Color(0xFFD4EED8);
-
 }
