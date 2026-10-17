@@ -1,10 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../data/account_store.dart';
+import '../../data/transaction_store.dart';
 import '../analytics/analytics_content.dart';
 import '../transactions/transactions_content.dart';
+import 'account_entry_sheet.dart';
+import 'transaction_entry_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,6 +22,17 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedNavIndex = 0;
   final PageController _pageController = PageController();
+  late final Listenable _homeData = Listenable.merge([
+    TransactionStore.instance,
+    AccountStore.instance,
+  ]);
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(TransactionStore.instance.load());
+    unawaited(AccountStore.instance.load());
+  }
 
   @override
   void dispose() {
@@ -55,9 +72,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   });
                 },
                 children: [
-                  _buildHomeContent(),
+                  AnimatedBuilder(
+                    animation: _homeData,
+                    builder: (context, _) => _buildHomeContent(),
+                  ),
                   const TransactionsContent(),
-                  const AnalyticsContent(),
+                  const AnalyticsContent(key: ValueKey('analytics-page')),
                   _buildMoreContent(),
                 ],
               ),
@@ -83,8 +103,8 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 22),
           _buildSectionHeader(
             'Рахунки та картки',
-            'Усі (4)',
-            onTap: () => _showMessage('Усі рахунки'),
+            'Додати +',
+            onTap: () => showAccountEntrySheet(context),
           ),
           const SizedBox(height: 8),
           _buildAccounts(),
@@ -125,7 +145,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 leading: Icon(item.$1, color: AppColors.primary),
                 title: Text(item.$2),
                 trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => _showMessage(item.$2),
+                onTap: () {
+                  if (item.$2 == 'Рахунки та картки') {
+                    showAccountEntrySheet(context);
+                  } else {
+                    _showMessage(item.$2);
+                  }
+                },
               ),
             ),
             const SizedBox(height: 10),
@@ -143,8 +169,8 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         children: [
           Container(
-            width: 38,
-            height: 38,
+            width: 44,
+            height: 44,
             decoration: const BoxDecoration(
               color: AppColors.primary,
               shape: BoxShape.circle,
@@ -188,8 +214,8 @@ class _HomeScreenState extends State<HomeScreen> {
               customBorder: const CircleBorder(),
               onTap: () => _showMessage('Сповіщення'),
               child: SizedBox(
-                width: 38,
-                height: 38,
+                width: 44,
+                height: 44,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
@@ -219,16 +245,42 @@ class _HomeScreenState extends State<HomeScreen> {
   // BALANCE CARD
 
   Widget _buildBalanceCard() {
+    final store = TransactionStore.instance;
+    final accountStore = AccountStore.instance;
+    final now = DateTime.now();
+    final monthStart = DateTime(now.year, now.month);
+    final nextMonth = DateTime(now.year, now.month + 1);
+    final balanceCents =
+        accountStore.totalBalanceCents +
+        store.transactions.fold<int>(
+          0,
+          (balance, transaction) =>
+              balance +
+              (transaction.isIncome
+                  ? transaction.amountCents
+                  : -transaction.amountCents),
+        );
+    final monthlyIncomeCents = store.sumBetween(
+      monthStart,
+      nextMonth,
+      type: TransactionType.income,
+    );
+    final monthlyExpenseCents = store.sumBetween(
+      monthStart,
+      nextMonth,
+      type: TransactionType.expense,
+    );
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+      padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [Color(0xFF1D5947), Color(0xFF285E50)],
         ),
-        borderRadius: BorderRadius.circular(23),
+        borderRadius: BorderRadius.circular(25),
         boxShadow: [
           BoxShadow(
             color: AppColors.primary.withValues(alpha: 0.13),
@@ -244,23 +296,23 @@ class _HomeScreenState extends State<HomeScreen> {
             'Загальний баланс',
             style: TextStyle(color: Color(0xFFB8D9C9), fontSize: 12),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: RichText(
-              text: const TextSpan(
+              text: TextSpan(
                 children: [
                   TextSpan(
-                    text: '124,850.00 ',
-                    style: TextStyle(
-                      fontSize: 30,
+                    text: '${formatMoneyCents(balanceCents)} ',
+                    style: const TextStyle(
+                      fontSize: 32,
                       fontWeight: FontWeight.w800,
                       color: Colors.white,
                       letterSpacing: -0.7,
                     ),
                   ),
-                  TextSpan(
+                  const TextSpan(
                     text: 'грн',
                     style: TextStyle(
                       fontSize: 17,
@@ -272,9 +324,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: 26),
           Container(height: 1, color: Colors.white.withValues(alpha: 0.12)),
-          const SizedBox(height: 14),
+          const SizedBox(height: 20),
           Row(
             children: [
               Expanded(
@@ -283,7 +335,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   iconColor: const Color(0xFF6FE0B5),
                   background: const Color(0xFF286D58),
                   title: 'Дохід (місяць)',
-                  amount: '+45,000 грн',
+                  amount: monthlyIncomeCents == 0
+                      ? '0 грн'
+                      : '+${formatMoneyCents(monthlyIncomeCents, showDecimals: false)} грн',
                 ),
               ),
               const SizedBox(width: 8),
@@ -293,7 +347,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   iconColor: const Color(0xFFFFA5A5),
                   background: const Color(0xFF53675F),
                   title: 'Витрати (місяць)',
-                  amount: '-18,340 грн',
+                  amount: monthlyExpenseCents == 0
+                      ? '0 грн'
+                      : '−${formatMoneyCents(monthlyExpenseCents, showDecimals: false)} грн',
                 ),
               ),
             ],
@@ -313,8 +369,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return Row(
       children: [
         Container(
-          width: 27,
-          height: 27,
+          width: 31,
+          height: 31,
           decoration: BoxDecoration(color: background, shape: BoxShape.circle),
           child: Icon(icon, color: iconColor, size: 16),
         ),
@@ -327,7 +383,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Color(0xFFB8D9C9), fontSize: 9),
+                style: const TextStyle(color: Color(0xFFB8D9C9), fontSize: 10),
               ),
               const SizedBox(height: 2),
               FittedBox(
@@ -337,7 +393,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   amount,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 11,
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -357,13 +413,13 @@ class _HomeScreenState extends State<HomeScreen> {
         title: 'Дохід',
         assetPath: 'assets/icons/dohid.svg',
         background: const Color(0xFFE8F4EE),
-        onTap: () => _showMessage('Додавання доходу'),
+        onTap: () => showTransactionEntrySheet(context, isIncome: true),
       ),
       _QuickAction(
         title: 'Витрати',
         assetPath: 'assets/icons/vutratu.svg',
         background: const Color(0xFFFFF0F2),
-        onTap: () => _showMessage('Додавання витрати'),
+        onTap: () => showTransactionEntrySheet(context, isIncome: false),
       ),
       _QuickAction(
         title: 'Бюджет',
@@ -405,13 +461,13 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(16),
         onTap: action.onTap,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(3, 9, 3, 10),
+          padding: const EdgeInsets.fromLTRB(3, 11, 3, 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 34,
-                height: 34,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   color: action.background,
                   borderRadius: BorderRadius.circular(12),
@@ -426,7 +482,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 6),
               SizedBox(
-                height: 25,
+                height: 27,
                 child: Center(
                   child: Text(
                     action.title,
@@ -459,7 +515,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Text(
             title,
             style: const TextStyle(
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
@@ -483,42 +539,47 @@ class _HomeScreenState extends State<HomeScreen> {
   // ACCOUNTS
 
   Widget _buildAccounts() {
-    return FractionallySizedBox(
-      widthFactor: 0.855,
-      alignment: Alignment.centerLeft,
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildAccountCard(
-              name: 'mono',
-              balance: '48,200 ₴',
-              subtitle: 'Чорна картка',
-              isMono: true,
-            ),
+    final accounts = AccountStore.instance.accounts;
+    if (accounts.isEmpty) {
+      return Container(
+        width: double.infinity,
+        constraints: const BoxConstraints(minHeight: 88),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Center(
+          child: TextButton.icon(
+            onPressed: () => showAccountEntrySheet(context),
+            icon: const Icon(Icons.add_card_rounded, size: 18),
+            label: const Text('Додайте картку та суму'),
+            style: TextButton.styleFrom(foregroundColor: AppColors.primary),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildAccountCard(
-              name: 'Приват24',
-              balance: '76,650 ₴',
-              subtitle: 'Універсальна',
-              isMono: false,
-            ),
-          ),
-        ],
+        ),
+      );
+    }
+
+    final cardWidth = (MediaQuery.sizeOf(context).width - 48) / 2;
+    return SizedBox(
+      height: 100,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: accounts.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 12),
+        itemBuilder: (context, index) => SizedBox(
+          width: cardWidth,
+          child: _buildAccountCard(accounts[index]),
+        ),
       ),
     );
   }
 
-  Widget _buildAccountCard({
-    required String name,
-    required String balance,
-    required String subtitle,
-    required bool isMono,
-  }) {
+  Widget _buildAccountCard(AccountRecord account) {
+    final isMono = account.name.toLowerCase().contains('mono');
     return Container(
-      constraints: const BoxConstraints(minHeight: 82),
-      padding: const EdgeInsets.fromLTRB(12, 13, 10, 13),
+      height: 96,
+      padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -530,7 +591,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Flexible(
                 child: Text(
-                  name,
+                  account.name,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 12,
@@ -553,7 +614,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 7),
           Text(
-            subtitle,
+            account.subtitle,
             style: const TextStyle(
               fontSize: 11,
               color: AppColors.textSecondary,
@@ -564,7 +625,7 @@ class _HomeScreenState extends State<HomeScreen> {
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(
-              balance,
+              '${formatMoneyCents(account.balanceCents)} ₴',
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
@@ -580,35 +641,46 @@ class _HomeScreenState extends State<HomeScreen> {
   // RECENT TRANSACTIONS
 
   Widget _buildTransactions() {
+    final transactions = TransactionStore.instance.transactions
+        .take(2)
+        .toList();
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(18),
       ),
-      child: Column(
-        children: [
-          _buildTransactionRow(
-            icon: Icons.shopping_cart_outlined,
-            iconAssetPath: 'assets/images/products.png',
-            iconBackground: const Color(0xFFFFF0C2),
-            title: 'Сільпо',
-            subtitle: 'Продукти • Сьогодні',
-            amount: '-845.00 ₴',
-            amountColor: AppColors.textPrimary,
-          ),
-          Container(height: 1, color: const Color(0xFFF1F2F1)),
-          _buildTransactionRow(
-            icon: Icons.savings_outlined,
-            iconAssetPath: 'assets/images/zarplata.png',
-            iconBackground: const Color(0xFFD5F8E8),
-            title: 'Зарплата',
-            subtitle: 'Дохід • Вчора',
-            amount: '+35,000.00 ₴',
-            amountColor: AppColors.income,
-          ),
-        ],
-      ),
+      child: transactions.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 22),
+              child: Center(
+                child: Text(
+                  'Транзакцій ще немає',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+              ),
+            )
+          : Column(
+              children: [
+                for (var index = 0; index < transactions.length; index++) ...[
+                  _buildTransactionRow(
+                    icon: transactionIcon(transactions[index]),
+                    iconAssetPath: transactionIconAsset(transactions[index]),
+                    iconBackground: transactionTint(transactions[index]),
+                    title: transactions[index].title,
+                    subtitle:
+                        '${transactions[index].category} • ${transactionDateLabel(transactions[index].date)}',
+                    amount:
+                        '${transactions[index].isIncome ? '+' : '−'}${formatMoneyCents(transactions[index].amountCents)} ₴',
+                    amountColor: transactions[index].isIncome
+                        ? AppColors.income
+                        : AppColors.textPrimary,
+                  ),
+                  if (index != transactions.length - 1)
+                    Container(height: 1, color: const Color(0xFFF1F2F1)),
+                ],
+              ],
+            ),
     );
   }
 
@@ -622,42 +694,48 @@ class _HomeScreenState extends State<HomeScreen> {
     required Color amountColor,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
           Container(
-            width: 30,
-            height: 30,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: iconBackground,
+              color: iconAssetPath == null
+                  ? iconBackground
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(11),
             ),
             child: iconAssetPath == null
                 ? Icon(icon, size: 18, color: AppColors.textPrimary)
-                : Image.asset(
+                : SvgPicture.asset(
                     iconAssetPath,
-                    width: 22,
-                    height: 22,
+                    width: 38,
+                    height: 38,
                     fit: BoxFit.contain,
                   ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 10,
+                    fontSize: 12,
                     color: AppColors.textSecondary,
                   ),
                 ),
@@ -665,17 +743,15 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(width: 4),
-          Flexible(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                amount,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  color: amountColor,
-                ),
-              ),
+          Text(
+            amount,
+            maxLines: 1,
+            softWrap: false,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: amountColor,
             ),
           ),
         ],
@@ -711,7 +787,42 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: InkWell(
                   customBorder: const CircleBorder(),
                   onTap: _showAddTransactionSheet,
-                  child: SvgPicture.asset(item.iconPath, width: 68, height: 55),
+                  child: SizedBox(
+                    width: 52,
+                    height: 52,
+                    child: Center(
+                      child: Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.14),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.add_rounded,
+                              color: Colors.white,
+                              size: 29,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             );
@@ -773,8 +884,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showAddTransactionSheet() {
-    showModalBottomSheet<void>(
+  Future<void> _showAddTransactionSheet() async {
+    final isIncome = await showModalBottomSheet<bool>(
       context: context,
       backgroundColor: Colors.white,
       showDragHandle: true,
@@ -796,6 +907,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       label: 'Дохід',
                       icon: Icons.south_west_rounded,
                       color: AppColors.income,
+                      onPressed: () => Navigator.of(context).pop(true),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -804,6 +916,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       label: 'Витрата',
                       icon: Icons.north_east_rounded,
                       color: AppColors.expense,
+                      onPressed: () => Navigator.of(context).pop(false),
                     ),
                   ),
                 ],
@@ -813,6 +926,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+    if (isIncome != null && mounted) {
+      await showTransactionEntrySheet(context, isIncome: isIncome);
+    }
   }
 }
 
@@ -821,16 +937,18 @@ class _AddActionButton extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.color,
+    required this.onPressed,
   });
 
   final String label;
   final IconData icon;
   final Color color;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     return OutlinedButton.icon(
-      onPressed: () => Navigator.of(context).pop(),
+      onPressed: onPressed,
       icon: Icon(icon, color: color),
       label: Text(label, style: TextStyle(color: color)),
       style: OutlinedButton.styleFrom(
