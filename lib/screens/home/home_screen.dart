@@ -877,6 +877,10 @@ class _HomeScreenState extends State<HomeScreen> {
       3 => 2,
       _ => 3,
     };
+    if (!_pageController.hasClients) return;
+    if (_selectedNavIndex != index) {
+      setState(() => _selectedNavIndex = index);
+    }
     _pageController.animateToPage(
       page,
       duration: const Duration(milliseconds: 280),

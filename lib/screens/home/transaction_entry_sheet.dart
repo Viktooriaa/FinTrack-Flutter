@@ -6,20 +6,16 @@ import 'package:flutter/services.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/account_store.dart';
 import '../../data/transaction_store.dart';
-import 'account_entry_sheet.dart';
+import 'transaction_picker_sheets.dart';
 
 Future<void> showTransactionEntrySheet(
   BuildContext context, {
   required bool isIncome,
 }) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    enableDrag: false,
-    backgroundColor: AppColors.background,
-    shape: const RoundedRectangleBorder(),
-    builder: (context) => _TransactionEntrySheet(isIncome: isIncome),
+  return Navigator.of(context).push<void>(
+    MaterialPageRoute<void>(
+      builder: (context) => _TransactionEntrySheet(isIncome: isIncome),
+    ),
   );
 }
 
@@ -35,24 +31,31 @@ class _TransactionEntrySheet extends StatefulWidget {
 class _TransactionEntrySheetState extends State<_TransactionEntrySheet> {
   static const _expenseCategories = [
     ('Продукти', '🛒'),
-    ('Кафе', '☕'),
-    ('Транспорт', '🚕'),
+    ('Транспорт', '🚘'),
+    ('Ресторани та кафе', '🍴'),
     ('Покупки', '🛍️'),
-    ('Здоров’я', '💊'),
-    ('Розваги', '🎬'),
-    ('Комунальні', '🏠'),
-    ('Інше', '✨'),
+    ('Здоров’я', '❤️'),
+    ('Розваги', '🎮'),
+    ('Освіта', '🎓'),
+    ('Дім', '🏠'),
+    ('Інше', '•••'),
   ];
   static const _incomeCategories = [
     ('Зарплата', '💰'),
     ('Фріланс', '💻'),
+    ('Інвестиції', '📈'),
     ('Подарунок', '🎁'),
-    ('Інше', '✨'),
+    ('Інше', '•••'),
   ];
 
   final _formKey = GlobalKey<FormState>();
   final _commentController = TextEditingController();
-  final _amountController = TextEditingController();
+  final _amountController = TextEditingController.fromValue(
+    const TextEditingValue(
+      text: '0',
+      selection: TextSelection.collapsed(offset: 1),
+    ),
+  );
   late bool _isIncome = widget.isIncome;
   late String _category = _categoriesFor(widget.isIncome).first.$1;
   late DateTime _date = DateTime.now();
@@ -67,13 +70,14 @@ class _TransactionEntrySheetState extends State<_TransactionEntrySheet> {
   @override
   void initState() {
     super.initState();
+    _setDefaultAccount();
     unawaited(_loadAccounts());
   }
 
   Future<void> _loadAccounts() async {
     final store = AccountStore.instance;
     await store.load();
-    if (!mounted || store.accounts.isEmpty) return;
+    if (!mounted || store.accounts.isEmpty || _accountChosen) return;
     final account = _preferredAccount(store.accounts);
     setState(() {
       _accountId = account.id;
@@ -111,89 +115,26 @@ class _TransactionEntrySheetState extends State<_TransactionEntrySheet> {
   }
 
   Future<void> _selectCategory() async {
-    final selected = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: Colors.white,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-          children: [
-            const Padding(
-              padding: EdgeInsets.only(bottom: 12),
-              child: Text(
-                'Категорія',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-              ),
-            ),
-            for (final category in _categoriesFor(_isIncome))
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Text(
-                  category.$2,
-                  style: const TextStyle(fontSize: 22),
-                ),
-                title: Text(category.$1),
-                trailing: category.$1 == _category
-                    ? const Icon(Icons.check_rounded, color: AppColors.primary)
-                    : null,
-                onTap: () => Navigator.pop(context, category.$1),
-              ),
-          ],
-        ),
-      ),
+    final selected = await showTransactionCategoryPicker(
+      context,
+      isIncome: _isIncome,
     );
-    if (selected != null && mounted) setState(() => _category = selected);
+    if (selected == null || !mounted) return;
+    setState(() {
+      _isIncome = selected.isIncome;
+      _category = selected.name;
+      if (!_accountChosen) _setDefaultAccount();
+    });
   }
 
   Future<void> _selectAccount() async {
     final store = AccountStore.instance;
     await store.load();
     if (!mounted) return;
-    if (store.accounts.isEmpty) {
-      await showAccountEntrySheet(context);
-      await store.load();
-      if (!mounted || store.accounts.isEmpty) return;
-    }
-    final selected = await showModalBottomSheet<AccountRecord>(
-      context: context,
-      backgroundColor: Colors.white,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-          children: [
-            const Padding(
-              padding: EdgeInsets.only(bottom: 12),
-              child: Text(
-                'Рахунок',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-              ),
-            ),
-            for (final account in store.accounts)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const CircleAvatar(
-                  backgroundColor: Color(0xFFE8F3EF),
-                  child: Icon(
-                    Icons.account_balance_wallet_outlined,
-                    color: AppColors.primary,
-                  ),
-                ),
-                title: Text(account.name),
-                subtitle: account.subtitle.isEmpty
-                    ? null
-                    : Text(account.subtitle),
-                trailing: account.id == _accountId
-                    ? const Icon(Icons.check_rounded, color: AppColors.primary)
-                    : null,
-                onTap: () => Navigator.pop(context, account),
-              ),
-          ],
-        ),
-      ),
+    final selected = await showTransactionAccountPicker(
+      context,
+      selectedId: _accountId,
+      selectedName: _accountName,
     );
     if (selected != null && mounted) {
       setState(() {
@@ -205,20 +146,9 @@ class _TransactionEntrySheetState extends State<_TransactionEntrySheet> {
   }
 
   Future<void> _selectDate() async {
-    final selected = await showDatePicker(
-      context: context,
-      initialDate: _date,
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
-      locale: const Locale('uk'),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: Theme.of(
-            context,
-          ).colorScheme.copyWith(primary: AppColors.primary),
-        ),
-        child: child!,
-      ),
+    final selected = await showTransactionDatePicker(
+      context,
+      selectedDate: _date,
     );
     if (selected != null && mounted) {
       setState(() {
@@ -296,6 +226,7 @@ class _TransactionEntrySheetState extends State<_TransactionEntrySheet> {
                                 FilteringTextInputFormatter.allow(
                                   RegExp(r'[0-9.,]'),
                                 ),
+                                const _AmountInputFormatter(),
                               ],
                               style: TextStyle(
                                 color: accent,
@@ -303,15 +234,9 @@ class _TransactionEntrySheetState extends State<_TransactionEntrySheet> {
                                 fontWeight: FontWeight.w800,
                               ),
                               decoration: InputDecoration(
-                                hintText: _isIncome ? '25,000' : '850.00',
                                 border: InputBorder.none,
                                 isDense: true,
                                 contentPadding: EdgeInsets.zero,
-                                hintStyle: TextStyle(
-                                  color: accent,
-                                  fontSize: 34,
-                                  fontWeight: FontWeight.w800,
-                                ),
                               ),
                               validator: (value) {
                                 final amount = _parseAmount(value);
@@ -487,15 +412,19 @@ class _TransactionEntrySheetState extends State<_TransactionEntrySheet> {
     setState(() {
       _isIncome = isIncome;
       _category = _categoriesFor(isIncome).first.$1;
-      if (!_accountChosen) {
-        final accounts = AccountStore.instance.accounts;
-        if (accounts.isNotEmpty) {
-          final preferred = _preferredAccount(accounts);
-          _accountId = preferred.id;
-          _accountName = preferred.name;
-        }
-      }
+      if (!_accountChosen) _setDefaultAccount();
     });
+  }
+
+  void _setDefaultAccount() {
+    _accountId = null;
+    _accountName = _isIncome ? 'ПриватБанк' : 'monobank';
+    final accounts = AccountStore.instance.accounts;
+    if (accounts.isNotEmpty) {
+      final account = _preferredAccount(accounts);
+      _accountId = account.id;
+      _accountName = account.name;
+    }
   }
 
   AccountRecord _preferredAccount(List<AccountRecord> accounts) {
@@ -527,6 +456,63 @@ double? _parseAmount(String? value) {
       ? input.replaceAll(',', '')
       : input.replaceAll(',', '.');
   return double.tryParse(normalized);
+}
+
+class _AmountInputFormatter extends TextInputFormatter {
+  const _AmountInputFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    var text = newValue.text;
+    if (text.isEmpty) {
+      return const TextEditingValue(
+        text: '0',
+        selection: TextSelection.collapsed(offset: 1),
+      );
+    }
+
+    final separatorIndex = text.indexOf(RegExp(r'[.,]'));
+    if (separatorIndex >= 0) {
+      final separator = text.substring(separatorIndex, separatorIndex + 1);
+      final integerPart = text.substring(0, separatorIndex);
+      final decimalPart = text
+          .substring(separatorIndex + 1)
+          .replaceAll(RegExp(r'[.,]'), '');
+      text = '$integerPart$separator$decimalPart';
+    }
+
+    var addedLeadingZero = false;
+    if (text.startsWith(RegExp(r'[.,]'))) {
+      text = '0$text';
+      addedLeadingZero = true;
+    }
+
+    final normalizedSeparatorIndex = text.indexOf(RegExp(r'[.,]'));
+    final integerEnd = normalizedSeparatorIndex < 0
+        ? text.length
+        : normalizedSeparatorIndex;
+    final integerPart = text.substring(0, integerEnd);
+    var normalizedInteger = integerPart.replaceFirst(RegExp(r'^0+'), '');
+    if (normalizedInteger.isEmpty) normalizedInteger = '0';
+    final removedLeadingZeros = integerPart.length - normalizedInteger.length;
+    if (removedLeadingZeros > 0) {
+      text = normalizedInteger + text.substring(integerEnd);
+    }
+
+    final offset = (newValue.selection.extentOffset +
+            (addedLeadingZero ? 1 : 0) -
+            removedLeadingZeros)
+        .clamp(0, text.length)
+        .toInt();
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: offset),
+      composing: TextRange.empty,
+    );
+  }
 }
 
 class _TypeOption extends StatelessWidget {
