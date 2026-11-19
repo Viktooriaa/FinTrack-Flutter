@@ -24,7 +24,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       imageHeight: 220,
       title: 'Контролюй свої\nфінанси легко',
       description:
-      'Автоматичний облік, аналітика та розумні поради\n'
+          'Автоматичний облік, аналітика та розумні поради\n'
           'в одному застосунку.',
     ),
 
@@ -34,7 +34,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       imageHeight: 280,
       title: 'Автоматичний\nімпорт транзакцій',
       description:
-      'Підключи свої банки, Apple Pay або Google Pay,\n'
+          'Підключи свої банки, Apple Pay або Google Pay,\n'
           'і ми самі підтягнемо твої витрати.',
     ),
 
@@ -44,7 +44,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       imageHeight: 260,
       title: 'ШІ аналізує\nтвої витрати',
       description:
-      'Розумна категоризація,\n'
+          'Розумна категоризація,\n'
           'статистика та персональні\n'
           'рекомендації.',
     ),
@@ -55,7 +55,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       imageHeight: 260,
       title: 'Досягай\nсвоїх фінансових цілей',
       description:
-      'Створюй цілі, відстежуй прогрес та\n'
+          'Створюй цілі, відстежуй прогрес та\n'
           'рухайся до бажаного результату.',
     ),
   ];
@@ -79,6 +79,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isCompact = MediaQuery.sizeOf(context).height < 700;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -89,9 +90,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               // =========================
               // HEADER
               // =========================
-
               Padding(
-                padding: const EdgeInsets.only(top: 48),
+                padding: EdgeInsets.only(top: isCompact ? 20 : 48),
                 child: SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -121,7 +121,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               // =========================
               // ONBOARDING PAGES
               // =========================
-
               Expanded(
                 child: PageView.builder(
                   controller: _pageController,
@@ -133,60 +132,54 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   },
                   itemBuilder: (context, index) {
                     final page = _pages[index];
-
-                    return Column(
-                      children: [
-                        // Відступ від логотипа
-                        const SizedBox(height: 36),
-
-                        // =========================
-                        // ILLUSTRATION
-                        // =========================
-
-                        SizedBox(
-                          width: double.infinity,
-                          height: 280,
-                          child: Align(
-                            alignment: Alignment.topCenter,
-                            child: Image.asset(
-                              page.image,
-                              width: page.imageWidth,
-                              height: page.imageHeight,
-                              fit: BoxFit.contain,
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        final compact = constraints.maxHeight < 420;
+                        final illustrationHeight = (constraints.maxHeight * .5)
+                            .clamp(130.0, 280.0)
+                            .toDouble();
+                        return SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minHeight: constraints.maxHeight,
+                            ),
+                            child: Column(
+                              children: [
+                                SizedBox(height: compact ? 10 : 36),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: illustrationHeight,
+                                  child: Image.asset(
+                                    page.image,
+                                    width: page.imageWidth,
+                                    height: page.imageHeight,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                                SizedBox(height: compact ? 12 : 20),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: Text(
+                                    page.title,
+                                    style: AppTextStyles.h2,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                                SizedBox(height: compact ? 8 : 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: Text(
+                                    page.description,
+                                    style: AppTextStyles.bodySmall,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-
-                        // =========================
-                        // TITLE
-                        // =========================
-
-                        const SizedBox(height: 20),
-
-                        SizedBox(
-                          width: 339,
-                          child: Text(
-                            page.title,
-                            style: AppTextStyles.h2,
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-
-                        // =========================
-                        // DESCRIPTION
-                        // =========================
-
-                        const SizedBox(height: 12),
-
-                        SizedBox(
-                          width: 339,
-                          child: Text(
-                            page.description,
-                            style: AppTextStyles.bodySmall,
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ],
+                        );
+                      },
                     );
                   },
                 ),
@@ -195,47 +188,40 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               // =========================
               // PAGINATION
               // =========================
-
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  _pages.length,
-                      (index) {
-                    final isActive = index == _currentPage;
+                children: List.generate(_pages.length, (index) {
+                  final isActive = index == _currentPage;
 
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeInOut,
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      width: isActive ? 18 : 5,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: isActive
-                            ? AppColors.primary
-                            : const Color(0xFFD1D5DB),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    );
-                  },
-                ),
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: isActive ? 18 : 5,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? AppColors.primary
+                          : const Color(0xFFD1D5DB),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  );
+                }),
               ),
 
               // Відступ до кнопки
-              const SizedBox(height: 48),
+              SizedBox(height: isCompact ? 20 : 48),
 
               // =========================
               // BUTTON
               // =========================
-
               PrimaryButton(
-                text: _currentPage == _pages.length - 1
-                    ? 'Почати'
-                    : 'Далі',
+                text: _currentPage == _pages.length - 1 ? 'Почати' : 'Далі',
                 onPressed: _nextPage,
               ),
 
               // Нижній відступ
-              const SizedBox(height: 28),
+              SizedBox(height: isCompact ? 16 : 28),
             ],
           ),
         ),

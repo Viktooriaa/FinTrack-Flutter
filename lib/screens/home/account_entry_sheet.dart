@@ -37,9 +37,7 @@ class _AccountEntrySheetState extends State<_AccountEntrySheet> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    final amount = double.parse(
-      _balanceController.text.replaceAll(' ', '').replaceAll(',', '.'),
-    );
+    final amount = _parseBalanceAmount(_balanceController.text)!;
     setState(() => _saving = true);
     await AccountStore.instance.add(
       AccountRecord(
@@ -105,9 +103,7 @@ class _AccountEntrySheetState extends State<_AccountEntrySheet> {
                   border: OutlineInputBorder(),
                 ),
                 validator: (value) {
-                  final amount = double.tryParse(
-                    (value ?? '').replaceAll(' ', '').replaceAll(',', '.'),
-                  );
+                  final amount = _parseBalanceAmount(value ?? '');
                   if (amount == null || !amount.isFinite || amount < 0) {
                     return 'Вкажи суму картки';
                   }
@@ -138,4 +134,32 @@ class _AccountEntrySheetState extends State<_AccountEntrySheet> {
       ),
     );
   }
+}
+
+double? _parseBalanceAmount(String value) {
+  final input = value.replaceAll(RegExp(r'\s+'), '').trim();
+  if (input.isEmpty) return null;
+
+  final lastComma = input.lastIndexOf(',');
+  final lastDot = input.lastIndexOf('.');
+  var normalized = input;
+  if (lastComma >= 0 && lastDot >= 0) {
+    final decimalSeparator = lastComma > lastDot ? ',' : '.';
+    final groupingSeparator = decimalSeparator == ',' ? '.' : ',';
+    normalized = input
+        .replaceAll(groupingSeparator, '')
+        .replaceAll(decimalSeparator, '.');
+  } else if (lastComma >= 0) {
+    final commaParts = input.split(',');
+    final commaIsGrouping = commaParts.length > 1 &&
+        commaParts.first.isNotEmpty &&
+        commaParts.first.length <= 3 &&
+        commaParts.skip(1).every((part) => part.length == 3);
+    normalized = commaIsGrouping
+        ? input.replaceAll(',', '')
+        : input.replaceAll(',', '.');
+  }
+
+  final amount = double.tryParse(normalized);
+  return amount != null && amount.isFinite ? amount : null;
 }

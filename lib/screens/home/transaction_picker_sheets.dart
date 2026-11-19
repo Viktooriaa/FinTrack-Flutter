@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../data/account_store.dart';
@@ -28,7 +29,7 @@ Future<TransactionCategoryChoice?> showTransactionCategoryPicker(
     backgroundColor: Colors.transparent,
     barrierColor: const Color(0x40000000),
     builder: (context) => _PickerSheetFrame(
-      heightFactor: .785,
+      heightFactor: _sheetHeightFactor(context, 630, min: .6, max: .94),
       child: _CategoryPicker(isIncome: isIncome),
     ),
   );
@@ -45,7 +46,7 @@ Future<TransactionAccountChoice?> showTransactionAccountPicker(
     backgroundColor: Colors.transparent,
     barrierColor: const Color(0x40000000),
     builder: (context) => _PickerSheetFrame(
-      heightFactor: .505,
+      heightFactor: _sheetHeightFactor(context, 440, min: .46, max: .88),
       child: _AccountPicker(selectedId: selectedId, selectedName: selectedName),
     ),
   );
@@ -61,11 +62,20 @@ Future<DateTime?> showTransactionDatePicker(
     backgroundColor: Colors.transparent,
     barrierColor: const Color(0x40000000),
     builder: (context) => _PickerSheetFrame(
-      heightFactor: .48,
+      heightFactor: _sheetHeightFactor(context, 450, min: .46, max: .9),
       child: _DatePicker(selectedDate: selectedDate),
     ),
   );
 }
+
+double _sheetHeightFactor(
+  BuildContext context,
+  double desiredHeight, {
+  required double min,
+  required double max,
+}) => (desiredHeight / MediaQuery.sizeOf(context).height)
+    .clamp(min, max)
+    .toDouble();
 
 class _PickerSheetFrame extends StatelessWidget {
   const _PickerSheetFrame({required this.child, required this.heightFactor});
@@ -148,24 +158,35 @@ class _PickerHeader extends StatelessWidget {
   }
 }
 
+class _CategoryOption {
+  const _CategoryOption(this.name, {this.assetPath, this.icon});
+
+  final String name;
+  final String? assetPath;
+  final IconData? icon;
+}
+
 const _expenseCategories = [
-  ('Продукти', '🛒'),
-  ('Транспорт', '🚘'),
-  ('Ресторани та кафе', '🍴'),
-  ('Покупки', '🛍️'),
-  ('Здоров’я', '❤️'),
-  ('Розваги', '🎮'),
-  ('Освіта', '🎓'),
-  ('Дім', '🏠'),
-  ('Інше', '•••'),
+  _CategoryOption('Продукти', assetPath: 'assets/icons/products.svg'),
+  _CategoryOption('Транспорт', assetPath: 'assets/icons/transport.svg'),
+  _CategoryOption(
+    'Ресторани та кафе',
+    assetPath: 'assets/icons/restaurant.svg',
+  ),
+  _CategoryOption('Покупки', assetPath: 'assets/icons/shopping.svg'),
+  _CategoryOption('Здоров’я', assetPath: 'assets/icons/pharmacy.svg'),
+  _CategoryOption('Розваги', assetPath: 'assets/icons/entertainment.svg'),
+  _CategoryOption('Освіта', icon: Icons.school_rounded),
+  _CategoryOption('Дім', icon: Icons.home_rounded),
+  _CategoryOption('Інше', icon: Icons.more_horiz_rounded),
 ];
 
 const _incomeCategories = [
-  ('Зарплата', '💰'),
-  ('Фріланс', '💻'),
-  ('Інвестиції', '📈'),
-  ('Подарунок', '🎁'),
-  ('Інше', '•••'),
+  _CategoryOption('Зарплата', assetPath: 'assets/icons/zarplata.svg'),
+  _CategoryOption('Фріланс', assetPath: 'assets/icons/income.svg'),
+  _CategoryOption('Інвестиції', assetPath: 'assets/icons/finansu.svg'),
+  _CategoryOption('Подарунок', icon: Icons.card_giftcard_rounded),
+  _CategoryOption('Інше', icon: Icons.more_horiz_rounded),
 ];
 
 class _CategoryPicker extends StatefulWidget {
@@ -185,7 +206,7 @@ class _CategoryPickerState extends State<_CategoryPicker> {
   Widget build(BuildContext context) {
     final categories = _isIncome ? _incomeCategories : _expenseCategories;
     final filtered = categories
-        .where((item) => item.$1.toLowerCase().contains(_query.toLowerCase()))
+        .where((item) => item.name.toLowerCase().contains(_query.toLowerCase()))
         .toList();
 
     return Column(
@@ -265,13 +286,27 @@ class _CategoryPickerState extends State<_CategoryPicker> {
               ),
               child: ListView.separated(
                 padding: EdgeInsets.zero,
-                itemCount: filtered.length,
+                itemCount: filtered.isEmpty ? 1 : filtered.length,
                 separatorBuilder: (context, index) => const Divider(
                   height: 1,
                   indent: 54,
                   color: Color(0xFFE9EDEB),
                 ),
                 itemBuilder: (context, index) {
+                  if (filtered.isEmpty) {
+                    return const SizedBox(
+                      height: 72,
+                      child: Center(
+                        child: Text(
+                          'Категорій не знайдено',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
                   final item = filtered[index];
                   return SizedBox(
                     height: 50,
@@ -280,18 +315,18 @@ class _CategoryPickerState extends State<_CategoryPicker> {
                         context,
                         TransactionCategoryChoice(
                           isIncome: _isIncome,
-                          name: item.$1,
+                          name: item.name,
                         ),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         child: Row(
                           children: [
-                            _PickerIcon(label: item.$2),
+                            _CategorySticker(category: item),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                item.$1,
+                                item.name,
                                 style: const TextStyle(fontSize: 12),
                               ),
                             ),
@@ -311,6 +346,40 @@ class _CategoryPickerState extends State<_CategoryPicker> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _CategorySticker extends StatelessWidget {
+  const _CategorySticker({required this.category});
+
+  final _CategoryOption category;
+
+  @override
+  Widget build(BuildContext context) {
+    final assetPath = category.assetPath;
+    if (assetPath != null) {
+      return SvgPicture.asset(
+        assetPath,
+        width: 32,
+        height: 32,
+        fit: BoxFit.contain,
+      );
+    }
+
+    return Container(
+      width: 32,
+      height: 32,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEF4F0),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Icon(
+        category.icon ?? Icons.category_rounded,
+        size: 18,
+        color: AppColors.primary,
+      ),
     );
   }
 }
@@ -579,7 +648,10 @@ class _AccountPreset {
 }
 
 class _DashedRoundedBorderPainter extends CustomPainter {
-  const _DashedRoundedBorderPainter({required this.color, required this.radius});
+  const _DashedRoundedBorderPainter({
+    required this.color,
+    required this.radius,
+  });
 
   final Color color;
   final double radius;

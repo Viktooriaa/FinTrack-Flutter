@@ -71,6 +71,15 @@ class TransactionStore extends ChangeNotifier {
 
   List<TransactionRecord> get transactions => List.unmodifiable(_transactions);
 
+  List<TransactionRecord> get newestFirst {
+    final ordered = _transactions.toList()
+      ..sort((left, right) {
+        final byDate = right.date.compareTo(left.date);
+        return byDate != 0 ? byDate : right.id.compareTo(left.id);
+      });
+    return List.unmodifiable(ordered);
+  }
+
   Future<void> load() {
     if (_loaded) return Future<void>.value();
     return _loading ??= _load();
@@ -210,7 +219,9 @@ String transactionDateLabel(DateTime date, {DateTime? now}) {
   final todayDate = DateTime(today.year, today.month, today.day);
   final difference = todayDate.difference(localDate).inDays;
   final month = _ukrainianMonths[date.month - 1];
-  final formattedDate = '${date.day} $month';
+  final formattedDate = date.year == today.year
+      ? '${date.day} $month'
+      : '${date.day} $month ${date.year}';
   if (difference == 0) return 'Сьогодні, $formattedDate';
   if (difference == 1) return 'Вчора, $formattedDate';
   return formattedDate;

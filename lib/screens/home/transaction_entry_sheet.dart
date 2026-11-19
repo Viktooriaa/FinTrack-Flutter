@@ -14,21 +14,21 @@ Future<void> showTransactionEntrySheet(
 }) {
   return Navigator.of(context).push<void>(
     MaterialPageRoute<void>(
-      builder: (context) => _TransactionEntrySheet(isIncome: isIncome),
+      builder: (context) => TransactionEntryScreen(isIncome: isIncome),
     ),
   );
 }
 
-class _TransactionEntrySheet extends StatefulWidget {
-  const _TransactionEntrySheet({required this.isIncome});
+class TransactionEntryScreen extends StatefulWidget {
+  const TransactionEntryScreen({super.key, required this.isIncome});
 
   final bool isIncome;
 
   @override
-  State<_TransactionEntrySheet> createState() => _TransactionEntrySheetState();
+  State<TransactionEntryScreen> createState() => _TransactionEntryScreenState();
 }
 
-class _TransactionEntrySheetState extends State<_TransactionEntrySheet> {
+class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
   static const _expenseCategories = [
     ('Продукти', '🛒'),
     ('Транспорт', '🚘'),
@@ -93,6 +93,7 @@ class _TransactionEntrySheetState extends State<_TransactionEntrySheet> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     if (!_formKey.currentState!.validate()) return;
     final amount = _parseAmount(_amountController.text)!;
     setState(() => _saving = true);
@@ -115,6 +116,7 @@ class _TransactionEntrySheetState extends State<_TransactionEntrySheet> {
   }
 
   Future<void> _selectCategory() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final selected = await showTransactionCategoryPicker(
       context,
       isIncome: _isIncome,
@@ -128,6 +130,7 @@ class _TransactionEntrySheetState extends State<_TransactionEntrySheet> {
   }
 
   Future<void> _selectAccount() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final store = AccountStore.instance;
     await store.load();
     if (!mounted) return;
@@ -146,6 +149,7 @@ class _TransactionEntrySheetState extends State<_TransactionEntrySheet> {
   }
 
   Future<void> _selectDate() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final selected = await showTransactionDatePicker(
       context,
       selectedDate: _date,
@@ -165,7 +169,6 @@ class _TransactionEntrySheetState extends State<_TransactionEntrySheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     final accent = _isIncome ? AppColors.income : AppColors.expense;
     final categoryEmoji = _categoriesFor(
       _isIncome,
@@ -185,7 +188,7 @@ class _TransactionEntrySheetState extends State<_TransactionEntrySheet> {
                 child: SingleChildScrollView(
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: EdgeInsets.fromLTRB(20, 24, 20, 24 + bottomInset),
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -204,17 +207,10 @@ class _TransactionEntrySheetState extends State<_TransactionEntrySheet> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Text(
-                            _isIncome ? '+' : '−',
-                            style: TextStyle(
-                              color: accent,
-                              fontSize: 34,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(width: 3),
                           SizedBox(
-                            width: 160,
+                            width: (MediaQuery.sizeOf(context).width * .58)
+                                .clamp(150.0, 250.0)
+                                .toDouble(),
                             child: TextFormField(
                               controller: _amountController,
                               textAlign: TextAlign.center,
@@ -222,6 +218,9 @@ class _TransactionEntrySheetState extends State<_TransactionEntrySheet> {
                                   const TextInputType.numberWithOptions(
                                     decimal: true,
                                   ),
+                              textInputAction: TextInputAction.done,
+                              onFieldSubmitted: (_) =>
+                                  FocusManager.instance.primaryFocus?.unfocus(),
                               inputFormatters: [
                                 FilteringTextInputFormatter.allow(
                                   RegExp(r'[0-9.,]'),
@@ -233,10 +232,10 @@ class _TransactionEntrySheetState extends State<_TransactionEntrySheet> {
                                 fontSize: 34,
                                 fontWeight: FontWeight.w800,
                               ),
-                              decoration: InputDecoration(
-                                border: InputBorder.none,
-                                isDense: true,
-                                contentPadding: EdgeInsets.zero,
+                              cursorColor: accent,
+                              showCursor: true,
+                              decoration: const InputDecoration.collapsed(
+                                hintText: '',
                               ),
                               validator: (value) {
                                 final amount = _parseAmount(value);
@@ -466,47 +465,83 @@ class _AmountInputFormatter extends TextInputFormatter {
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    var text = newValue.text;
-    if (text.isEmpty) {
+    final raw = newValue.text;
+    if (raw.isEmpty) {
       return const TextEditingValue(
         text: '0',
         selection: TextSelection.collapsed(offset: 1),
       );
     }
 
-    final separatorIndex = text.indexOf(RegExp(r'[.,]'));
-    if (separatorIndex >= 0) {
-      final separator = text.substring(separatorIndex, separatorIndex + 1);
-      final integerPart = text.substring(0, separatorIndex);
-      final decimalPart = text
-          .substring(separatorIndex + 1)
-          .replaceAll(RegExp(r'[.,]'), '');
-      text = '$integerPart$separator$decimalPart';
-    }
+    final commaParts = raw.split(',');
+    final hasDot = raw.contains('.');
+    final commaPartsAreGrouped =
+        commaParts.length > 1 &&
+        commaParts.first.replaceAll(RegExp(r'\D'), '').length <= 3 &&
+        commaParts.skip(1).every((part) => part.length == 3);
+    final commaContinuesGrouping =
+        oldValue.text.contains(',') && raw.startsWith(oldValue.text) && !hasDot;
+    final commaIsGrouping =
+        !hasDot && (commaPartsAreGrouped || commaContinuesGrouping);
+    final decimalSeparatorIndex = hasDot
+        ? raw.indexOf('.')
+        : commaIsGrouping
+        ? -1
+        : raw.indexOf(',');
+    final integerSource = decimalSeparatorIndex >= 0
+        ? raw.substring(0, decimalSeparatorIndex)
+        : raw;
+    final decimalSource = decimalSeparatorIndex >= 0
+        ? raw.substring(decimalSeparatorIndex + 1)
+        : '';
+    var integerDigits = integerSource.replaceAll(RegExp(r'\D'), '');
+    integerDigits = integerDigits.replaceFirst(RegExp(r'^0+(?=\d)'), '');
+    if (integerDigits.isEmpty) integerDigits = '0';
+    final allDecimalDigits = decimalSource.replaceAll(RegExp(r'\D'), '');
+    final decimalDigits = allDecimalDigits.substring(
+      0,
+      allDecimalDigits.length.clamp(0, 2).toInt(),
+    );
+    final groupedInteger = integerDigits.replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (_) => ',',
+    );
+    final text = decimalSeparatorIndex >= 0
+        ? '$groupedInteger.$decimalDigits'
+        : groupedInteger;
 
-    var addedLeadingZero = false;
-    if (text.startsWith(RegExp(r'[.,]'))) {
-      text = '0$text';
-      addedLeadingZero = true;
-    }
-
-    final normalizedSeparatorIndex = text.indexOf(RegExp(r'[.,]'));
-    final integerEnd = normalizedSeparatorIndex < 0
-        ? text.length
-        : normalizedSeparatorIndex;
-    final integerPart = text.substring(0, integerEnd);
-    var normalizedInteger = integerPart.replaceFirst(RegExp(r'^0+'), '');
-    if (normalizedInteger.isEmpty) normalizedInteger = '0';
-    final removedLeadingZeros = integerPart.length - normalizedInteger.length;
-    if (removedLeadingZeros > 0) {
-      text = normalizedInteger + text.substring(integerEnd);
-    }
-
-    final offset = (newValue.selection.extentOffset +
-            (addedLeadingZero ? 1 : 0) -
-            removedLeadingZeros)
-        .clamp(0, text.length)
+    final rawOffset = newValue.selection.extentOffset
+        .clamp(0, raw.length)
         .toInt();
+    final prefix = raw.substring(0, rawOffset);
+    final digitsBeforeCaret = prefix
+        .replaceAll(RegExp(r'\D'), '')
+        .length
+        .clamp(0, text.replaceAll(RegExp(r'\D'), '').length)
+        .toInt();
+    final caretInFraction =
+        decimalSeparatorIndex >= 0 &&
+        prefix.contains(RegExp(r'[.,]')) &&
+        (hasDot || !commaIsGrouping);
+    int offset = 0;
+    if (caretInFraction) {
+      final pointIndex = text.indexOf('.');
+      final fractionDigitsBeforeCaret = prefix
+          .substring(prefix.lastIndexOf(RegExp(r'[.,]')) + 1)
+          .replaceAll(RegExp(r'\D'), '')
+          .length;
+      offset = pointIndex + 1 + fractionDigitsBeforeCaret;
+    } else if (digitsBeforeCaret > 0) {
+      var digitsSeen = 0;
+      for (var index = 0; index < text.length; index++) {
+        if (RegExp(r'\d').hasMatch(text[index])) digitsSeen++;
+        if (digitsSeen >= digitsBeforeCaret) {
+          offset = index + 1;
+          break;
+        }
+      }
+    }
+    offset = offset.clamp(0, text.length).toInt();
     return TextEditingValue(
       text: text,
       selection: TextSelection.collapsed(offset: offset),

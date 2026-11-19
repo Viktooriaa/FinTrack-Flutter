@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -13,7 +14,9 @@ import 'account_entry_sheet.dart';
 import 'transaction_entry_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.initialPage = 0});
+
+  final int initialPage;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -21,7 +24,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedNavIndex = 0;
-  final PageController _pageController = PageController();
+  late final PageController _pageController = PageController(
+    initialPage: widget.initialPage,
+  );
   late final Listenable _homeData = Listenable.merge([
     TransactionStore.instance,
     AccountStore.instance,
@@ -30,6 +35,12 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedNavIndex = switch (widget.initialPage) {
+      0 => 0,
+      1 => 1,
+      2 => 3,
+      _ => 4,
+    };
     unawaited(TransactionStore.instance.load());
     unawaited(AccountStore.instance.load());
   }
@@ -38,16 +49,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
-  }
-
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.primary,
-      ),
-    );
   }
 
   @override
@@ -90,6 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHomeContent() {
+    final accountCount = AccountStore.instance.accounts.length;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(18, 0, 18, 20),
       child: Column(
@@ -103,8 +105,10 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 22),
           _buildSectionHeader(
             'Рахунки та картки',
-            'Додати +',
-            onTap: () => showAccountEntrySheet(context),
+            accountCount == 0 ? 'Додати +' : 'Усі ($accountCount)',
+            onTap: accountCount == 0
+                ? () => showAccountEntrySheet(context)
+                : _openWallets,
           ),
           const SizedBox(height: 8),
           _buildAccounts(),
@@ -123,40 +127,161 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildMoreContent() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+      padding: const EdgeInsets.fromLTRB(22, 18, 22, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             'Ще',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+            style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
           ),
-          const SizedBox(height: 18),
-          for (final item in const [
-            (Icons.account_balance_wallet_outlined, 'Рахунки та картки'),
-            (Icons.flag_outlined, 'Фінансові цілі'),
-            (Icons.settings_outlined, 'Налаштування'),
-            (Icons.help_outline_rounded, 'Допомога'),
-          ]) ...[
-            Material(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              child: ListTile(
-                leading: Icon(item.$1, color: AppColors.primary),
-                title: Text(item.$2),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () {
-                  if (item.$2 == 'Рахунки та картки') {
-                    showAccountEntrySheet(context);
-                  } else {
-                    _showMessage(item.$2);
-                  }
-                },
-              ),
+          const SizedBox(height: 10),
+          _buildProfileMenuCard(),
+          const SizedBox(height: 8),
+          _buildMoreGroup([
+            _MoreMenuItem(
+              icon: Icons.account_balance_wallet_outlined,
+              title: 'Гаманці та банки',
+              onTap: _openWallets,
             ),
-            const SizedBox(height: 10),
+            _MoreMenuItem(
+              icon: Icons.track_changes_rounded,
+              title: 'Фінансові Цілі',
+              onTap: _openGoals,
+            ),
+            _MoreMenuItem(
+              icon: Icons.auto_awesome_outlined,
+              title: 'ШІ-Помічник',
+              onTap: _openAssistant,
+            ),
+          ]),
+          const SizedBox(height: 8),
+          _buildMoreGroup([
+            _MoreMenuItem(
+              icon: Icons.settings_outlined,
+              title: 'Налаштування',
+              onTap: _openSettings,
+            ),
+            _MoreMenuItem(
+              icon: Icons.shield_outlined,
+              title: 'Безпека & PIN',
+              onTap: _openSecurityPin,
+            ),
+          ]),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileMenuCard() {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: _openProfile,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: const Text(
+                  'І',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Ірина Коваленко',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'iryna@example.com',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMoreGroup(List<_MoreMenuItem> items) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < items.length; i++) ...[
+            _buildMoreRow(items[i]),
+            if (i != items.length - 1)
+              const Padding(
+                padding: EdgeInsets.only(left: 18),
+                child: Divider(height: 1, thickness: 0.5),
+              ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildMoreRow(_MoreMenuItem item) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: item.onTap,
+      child: SizedBox(
+        height: 46,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          child: Row(
+            children: [
+              Icon(item.icon, size: 18, color: AppColors.primary),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  item.title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: AppColors.inactive,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -212,7 +337,7 @@ class _HomeScreenState extends State<HomeScreen> {
             shape: const CircleBorder(),
             child: InkWell(
               customBorder: const CircleBorder(),
-              onTap: () => _showMessage('Сповіщення'),
+              onTap: _openNotifications,
               child: SizedBox(
                 width: 44,
                 height: 44,
@@ -273,7 +398,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+      padding: const EdgeInsets.fromLTRB(22, 18, 22, 16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -324,9 +449,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 26),
+          const SizedBox(height: 22),
           Container(height: 1, color: Colors.white.withValues(alpha: 0.12)),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
@@ -425,29 +550,57 @@ class _HomeScreenState extends State<HomeScreen> {
         title: 'Бюджет',
         assetPath: 'assets/icons/budget.svg',
         background: const Color(0xFFE8F4EE),
-        onTap: () => _showMessage('Бюджет'),
+        onTap: _openBudget,
       ),
       _QuickAction(
         title: 'Фінансові\nцілі',
         assetPath: 'assets/icons/finansu.svg',
         background: const Color(0xFFEDF4FF),
-        onTap: () => _showMessage('Фінансові цілі'),
+        onTap: _openGoals,
       ),
       _QuickAction(
         title: 'Сканувати\nчек',
         assetPath: 'assets/icons/check.svg',
         background: const Color(0xFFFFF8E3),
-        onTap: () => _showMessage('Сканування чека'),
+        onTap: _openReceiptScan,
       ),
     ];
 
-    return Row(
-      children: [
-        for (int i = 0; i < actions.length; i++) ...[
-          if (i > 0) const SizedBox(width: 6),
-          Expanded(child: _buildQuickActionCard(actions[i])),
-        ],
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 6.0;
+        final cardWidth = ((constraints.maxWidth - gap * 4) / actions.length)
+            .clamp(54.0, 72.0)
+            .toDouble();
+        final fits =
+            cardWidth * actions.length + gap * 4 <= constraints.maxWidth;
+        final cards = [
+          for (var index = 0; index < actions.length; index++) ...[
+            if (index > 0) const SizedBox(width: gap),
+            SizedBox(
+              width: cardWidth,
+              child: _buildQuickActionCard(actions[index]),
+            ),
+          ],
+        ];
+        if (!fits) {
+          return SizedBox(
+            height: 108,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(children: cards),
+            ),
+          );
+        }
+        return Row(
+          children: [
+            for (var index = 0; index < actions.length; index++) ...[
+              if (index > 0) const SizedBox(width: gap),
+              Expanded(child: _buildQuickActionCard(actions[index])),
+            ],
+          ],
+        );
+      },
     );
   }
 
@@ -488,7 +641,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     action.title,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      fontSize: 10,
+                      fontSize: 9.5,
                       height: 1.15,
                       color: AppColors.textPrimary,
                     ),
@@ -561,6 +714,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final cardWidth = (MediaQuery.sizeOf(context).width - 48) / 2;
+    final transactions = TransactionStore.instance.transactions;
     return SizedBox(
       height: 100,
       child: ListView.separated(
@@ -569,13 +723,32 @@ class _HomeScreenState extends State<HomeScreen> {
         separatorBuilder: (context, index) => const SizedBox(width: 12),
         itemBuilder: (context, index) => SizedBox(
           width: cardWidth,
-          child: _buildAccountCard(accounts[index]),
+          child: _buildAccountCard(
+            accounts[index],
+            balanceCents: _currentAccountBalance(accounts[index], transactions),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildAccountCard(AccountRecord account) {
+  int _currentAccountBalance(
+    AccountRecord account,
+    List<TransactionRecord> transactions,
+  ) {
+    return transactions
+        .where((transaction) => transaction.accountId == account.id)
+        .fold<int>(
+          account.balanceCents,
+          (balance, transaction) =>
+              balance +
+              (transaction.isIncome
+                  ? transaction.amountCents
+                  : -transaction.amountCents),
+        );
+  }
+
+  Widget _buildAccountCard(AccountRecord account, {required int balanceCents}) {
     final isMono = account.name.toLowerCase().contains('mono');
     return Container(
       height: 96,
@@ -625,7 +798,7 @@ class _HomeScreenState extends State<HomeScreen> {
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(
-              '${formatMoneyCents(account.balanceCents)} ₴',
+              '${formatMoneyCents(balanceCents)} ₴',
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
@@ -641,9 +814,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // RECENT TRANSACTIONS
 
   Widget _buildTransactions() {
-    final transactions = TransactionStore.instance.transactions
-        .take(2)
-        .toList();
+    final transactions = TransactionStore.instance.newestFirst.take(2).toList();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
@@ -770,53 +941,56 @@ class _HomeScreenState extends State<HomeScreen> {
       (iconPath: 'assets/icons/dots.svg', label: 'Ще'),
     ];
 
-    return Container(
-      height: 54,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFEDEFEF), width: 0.7)),
-      ),
-      child: Row(
-        children: List.generate(items.length, (index) {
-          final item = items[index];
-          final isSelected = _selectedNavIndex == index;
+    return SafeArea(
+      top: false,
+      child: Container(
+        height: 54,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Color(0xFFEDEFEF), width: 0.7)),
+        ),
+        child: Row(
+          children: List.generate(items.length, (index) {
+            final item = items[index];
+            final isSelected = _selectedNavIndex == index;
 
-          if (index == 2) {
-            return Expanded(
-              child: Center(
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: _showAddTransactionSheet,
-                  child: SizedBox(
-                    width: 52,
-                    height: 52,
-                    child: Center(
-                      child: Container(
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.14),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: const BoxDecoration(
-                              color: AppColors.primary,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.add_rounded,
-                              color: Colors.white,
-                              size: 29,
+            if (index == 2) {
+              return Expanded(
+                child: Center(
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: _showAddTransactionSheet,
+                    child: SizedBox(
+                      width: 52,
+                      height: 52,
+                      child: Center(
+                        child: Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.14),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: const BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.add_rounded,
+                                color: Colors.white,
+                                size: 29,
+                              ),
                             ),
                           ),
                         ),
@@ -824,43 +998,43 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
+              );
+            }
+
+            return Expanded(
+              child: InkWell(
+                onTap: () => _onNavigationTap(index),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SvgPicture.asset(
+                      item.iconPath,
+                      width: 20,
+                      height: 20,
+                      colorFilter: ColorFilter.mode(
+                        isSelected ? AppColors.primary : AppColors.inactive,
+                        BlendMode.srcIn,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      item.label,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w400,
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.inactive,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
-          }
-
-          return Expanded(
-            child: InkWell(
-              onTap: () => _onNavigationTap(index),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SvgPicture.asset(
-                    item.iconPath,
-                    width: 20,
-                    height: 20,
-                    colorFilter: ColorFilter.mode(
-                      isSelected ? AppColors.primary : AppColors.inactive,
-                      BlendMode.srcIn,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    item.label,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.w400,
-                      color: isSelected
-                          ? AppColors.primary
-                          : AppColors.inactive,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
+          }),
+        ),
       ),
     );
   }
@@ -886,6 +1060,42 @@ class _HomeScreenState extends State<HomeScreen> {
       duration: const Duration(milliseconds: 280),
       curve: Curves.easeInOut,
     );
+  }
+
+  Future<void> _openGoals() async {
+    await context.push<void>('/goals');
+  }
+
+  Future<void> _openBudget() async {
+    await context.push<void>('/budget');
+  }
+
+  Future<void> _openAssistant() async {
+    await context.push<void>('/assistant');
+  }
+
+  Future<void> _openNotifications() async {
+    await context.push<void>('/notifications');
+  }
+
+  Future<void> _openProfile() async {
+    await context.push<void>('/profile');
+  }
+
+  Future<void> _openWallets() async {
+    await context.push<void>('/wallets');
+  }
+
+  Future<void> _openSettings() async {
+    await context.push<void>('/settings');
+  }
+
+  Future<void> _openSecurityPin() async {
+    await context.push<void>('/security-pin');
+  }
+
+  Future<void> _openReceiptScan() async {
+    await context.push<void>('/receipt-scan');
   }
 
   Future<void> _showAddTransactionSheet() async {
@@ -976,4 +1186,16 @@ class _QuickAction {
     required this.background,
     required this.onTap,
   });
+}
+
+class _MoreMenuItem {
+  const _MoreMenuItem({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
 }

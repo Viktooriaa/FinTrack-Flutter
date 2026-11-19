@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>FinTrack використовує камеру, щоб сфотографувати чек.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>FinTrack використовує фото з медіатеки, щоб додати чек.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

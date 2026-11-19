@@ -19,7 +19,7 @@ class _TransactionsContentState extends State<TransactionsContent>
   String _query = '';
 
   List<TransactionRecord> get _visibleItems {
-    return TransactionStore.instance.transactions.where((item) {
+    return TransactionStore.instance.newestFirst.where((item) {
       final matchesFilter = switch (_filter) {
         _TransactionFilter.all => true,
         _TransactionFilter.income => item.isIncome,
